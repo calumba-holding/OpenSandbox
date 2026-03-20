@@ -134,7 +134,6 @@ class TestKubernetesSandboxServiceCreate:
         sandbox_create_poll_interval_seconds are read from KubernetesRuntimeConfig
         and forwarded to _wait_for_sandbox_ready.
         """
-        from unittest.mock import patch, AsyncMock
 
         k8s_service.workload_provider.create_workload.return_value = {
             "name": "test-sandbox-123",
