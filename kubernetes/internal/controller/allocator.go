@@ -33,6 +33,7 @@ import (
 type AllocationStore interface {
 	GetAllocation(ctx context.Context, pool *sandboxv1alpha1.Pool) (*PoolAllocation, error)
 	SetAllocation(ctx context.Context, pool *sandboxv1alpha1.Pool, allocation *PoolAllocation) error
+	ClearAllocation(ctx context.Context, ns string, poolName string) error
 	UpdateAllocation(ctx context.Context, ns string, poolName string, sandboxName string, pods []string)
 	Recover(ctx context.Context, c client.Client) error
 }
@@ -100,7 +101,9 @@ func (store *InMemoryAllocationStore) Recover(ctx context.Context, c client.Clie
 			return err
 		}
 		for _, podName := range allocRelease.Pods {
-			delete(entry.data, podName)
+			if entry.data[podName] == sbx.Name {
+				delete(entry.data, podName)
+			}
 		}
 
 		log.Info("Recovered sandbox allocation", "pool", poolRef, "sandbox", sbx.Name, "pods", len(allocation.Pods))
@@ -111,6 +114,15 @@ func (store *InMemoryAllocationStore) Recover(ctx context.Context, c client.Clie
 	store.poolsMu.Unlock()
 
 	log.Info("Allocation recovery completed", "totalPools", len(store.pools))
+	return nil
+}
+
+func (store *InMemoryAllocationStore) ClearAllocation(ctx context.Context, ns string, poolName string) error {
+	log := logf.FromContext(ctx)
+	store.poolsMu.Lock()
+	log.Info("Clearing pool allocation", "namespace", ns, "pool", poolName)
+	delete(store.pools, store.poolKey(ns, poolName))
+	store.poolsMu.Unlock()
 	return nil
 }
 
@@ -292,6 +304,7 @@ type SandboxSyncInfo struct {
 type Allocator interface {
 	Schedule(ctx context.Context, spec *AllocSpec) (*AllocStatus, []SandboxSyncInfo, bool, error)
 	PersistPoolAllocation(ctx context.Context, pool *sandboxv1alpha1.Pool, status *AllocStatus) error
+	ClearPoolAllocation(ctx context.Context, ns string, poolName string) error
 	SyncSandboxAllocation(ctx context.Context, sandbox *sandboxv1alpha1.BatchSandbox, pods []string) error
 }
 
@@ -549,6 +562,10 @@ func (allocator *defaultAllocator) PersistPoolAllocation(ctx context.Context, po
 	alloc.PodAllocation = status.PodAllocation
 	log.Info("Persisting pool allocation", "pool", pool.Name, "allocations", len(status.PodAllocation))
 	return allocator.store.SetAllocation(ctx, pool, alloc)
+}
+
+func (allocator *defaultAllocator) ClearPoolAllocation(ctx context.Context, ns string, poolName string) error {
+	return allocator.store.ClearAllocation(ctx, ns, poolName)
 }
 
 func (allocator *defaultAllocator) SyncSandboxAllocation(ctx context.Context, sandbox *sandboxv1alpha1.BatchSandbox, pods []string) error {

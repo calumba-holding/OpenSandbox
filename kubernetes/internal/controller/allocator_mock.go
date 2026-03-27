@@ -66,6 +66,20 @@ func (mr *MockAllocationStoreMockRecorder) SetAllocation(ctx, pool, allocation i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAllocation", reflect.TypeOf((*MockAllocationStore)(nil).SetAllocation), ctx, pool, allocation)
 }
 
+// ClearAllocation mocks base method.
+func (m *MockAllocationStore) ClearAllocation(ctx context.Context, ns string, poolName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClearAllocation", ctx, ns, poolName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ClearAllocation indicates an expected call of ClearAllocation.
+func (mr *MockAllocationStoreMockRecorder) ClearAllocation(ctx, ns, poolName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearAllocation", reflect.TypeOf((*MockAllocationStore)(nil).ClearAllocation), ctx, ns, poolName)
+}
+
 // UpdateAllocation mocks base method.
 func (m *MockAllocationStore) UpdateAllocation(ctx context.Context, ns string, poolName string, sandboxName string, pods []string) {
 	m.ctrl.T.Helper()

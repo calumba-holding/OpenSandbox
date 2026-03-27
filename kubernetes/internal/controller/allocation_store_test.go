@@ -211,6 +211,124 @@ func TestInMemoryAllocationStore_Recover(t *testing.T) {
 	assert.Equal(t, 0, len(store.pools["default/pool2"].data), "pool2 should have no allocations")
 }
 
+func TestInMemoryAllocationStore_Recover_ReleaseOnlyOwnPods(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = sandboxv1alpha1.AddToScheme(scheme)
+
+	allocation1 := &SandboxAllocation{Pods: []string{"pod1"}}
+	release1 := &AllocationRelease{Pods: []string{"pod1"}}
+	allocation2 := &SandboxAllocation{Pods: []string{"pod1"}}
+
+	alloc1JSON, _ := json.Marshal(allocation1)
+	release1JSON, _ := json.Marshal(release1)
+	alloc2JSON, _ := json.Marshal(allocation2)
+
+	sandbox1 := &sandboxv1alpha1.BatchSandbox{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sandbox1",
+			Namespace: "default",
+			Annotations: map[string]string{
+				AnnoAllocStatusKey:  string(alloc1JSON),
+				AnnoAllocReleaseKey: string(release1JSON),
+			},
+		},
+		Spec: sandboxv1alpha1.BatchSandboxSpec{
+			PoolRef: "pool1",
+		},
+	}
+
+	sandbox2 := &sandboxv1alpha1.BatchSandbox{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sandbox2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				AnnoAllocStatusKey: string(alloc2JSON),
+			},
+		},
+		Spec: sandboxv1alpha1.BatchSandboxSpec{
+			PoolRef: "pool1",
+		},
+	}
+
+	client := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(sandbox2, sandbox1).
+		Build()
+
+	store := NewInMemoryAllocationStore().(*InMemoryAllocationStore)
+	ctx := context.Background()
+
+	err := store.Recover(ctx, client)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "sandbox2", store.pools["default/pool1"].data["pod1"])
+}
+
+func TestInMemoryAllocationStore_Recover_ReleasePodReassignedMultipleTimes(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = sandboxv1alpha1.AddToScheme(scheme)
+
+	allocation1 := &SandboxAllocation{Pods: []string{"pod1"}}
+	release1 := &AllocationRelease{Pods: []string{"pod1"}}
+	allocation2 := &SandboxAllocation{Pods: []string{"pod1"}}
+	release2 := &AllocationRelease{Pods: []string{"pod1"}}
+	allocation3 := &SandboxAllocation{Pods: []string{"pod1"}}
+
+	alloc1JSON, _ := json.Marshal(allocation1)
+	release1JSON, _ := json.Marshal(release1)
+	alloc2JSON, _ := json.Marshal(allocation2)
+	release2JSON, _ := json.Marshal(release2)
+	alloc3JSON, _ := json.Marshal(allocation3)
+
+	sandbox1 := &sandboxv1alpha1.BatchSandbox{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sandbox1",
+			Namespace: "default",
+			Annotations: map[string]string{
+				AnnoAllocStatusKey:  string(alloc1JSON),
+				AnnoAllocReleaseKey: string(release1JSON),
+			},
+		},
+		Spec: sandboxv1alpha1.BatchSandboxSpec{PoolRef: "pool1"},
+	}
+
+	sandbox2 := &sandboxv1alpha1.BatchSandbox{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sandbox2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				AnnoAllocStatusKey:  string(alloc2JSON),
+				AnnoAllocReleaseKey: string(release2JSON),
+			},
+		},
+		Spec: sandboxv1alpha1.BatchSandboxSpec{PoolRef: "pool1"},
+	}
+
+	sandbox3 := &sandboxv1alpha1.BatchSandbox{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sandbox3",
+			Namespace: "default",
+			Annotations: map[string]string{
+				AnnoAllocStatusKey: string(alloc3JSON),
+			},
+		},
+		Spec: sandboxv1alpha1.BatchSandboxSpec{PoolRef: "pool1"},
+	}
+
+	client := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(sandbox3, sandbox2, sandbox1).
+		Build()
+
+	store := NewInMemoryAllocationStore().(*InMemoryAllocationStore)
+	ctx := context.Background()
+
+	err := store.Recover(ctx, client)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "sandbox3", store.pools["default/pool1"].data["pod1"])
+}
+
 func TestInMemoryAllocationStore_Recover_ClearsExisting(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = sandboxv1alpha1.AddToScheme(scheme)

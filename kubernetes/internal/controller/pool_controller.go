@@ -87,6 +87,7 @@ func (r *PoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			// Pool resource not found, could have been deleted
 			controllerKey := req.NamespacedName.String()
 			PoolScaleExpectations.DeleteExpectations(controllerKey)
+			r.Allocator.ClearPoolAllocation(ctx, req.Namespace, req.Name)
 			log.Info("Pool resource not found, cleaned up scale expectations", "pool", controllerKey)
 			return ctrl.Result{}, nil
 		}
@@ -97,6 +98,7 @@ func (r *PoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	if !pool.DeletionTimestamp.IsZero() {
 		controllerKey := controllerutils.GetControllerKey(pool)
 		PoolScaleExpectations.DeleteExpectations(controllerKey)
+		r.Allocator.ClearPoolAllocation(ctx, req.Namespace, req.Name)
 		log.Info("Pool resource is being deleted, cleaned up scale expectations", "pool", controllerKey)
 		return ctrl.Result{}, nil
 	}
