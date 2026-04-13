@@ -514,7 +514,7 @@ func (r *PoolReconciler) updatePoolStatus(ctx context.Context, updateRevision st
 	pool.Status.Available = availableCnt
 	pool.Status.Revision = updateRevision
 	pool.Status.Updated = updatedCnt
-	if equality.Semantic.DeepEqual(oldStatus, pool.Status) {
+	if equality.Semantic.DeepEqual(*oldStatus, pool.Status) {
 		return nil
 	}
 	log := logf.FromContext(ctx)

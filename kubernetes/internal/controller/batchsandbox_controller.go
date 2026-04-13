@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	gerrors "errors"
 	"fmt"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -27,6 +26,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -209,7 +209,7 @@ func (r *BatchSandboxReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	if !reflect.DeepEqual(newStatus, batchSbx.Status) {
+	if !equality.Semantic.DeepEqual(*newStatus, batchSbx.Status) {
 		log.Info("To update BatchSandbox status", "replicas", newStatus.Replicas, "allocated", newStatus.Allocated, "ready", newStatus.Ready)
 		patchData, err := json.Marshal(map[string]any{
 			"status": map[string]any{
