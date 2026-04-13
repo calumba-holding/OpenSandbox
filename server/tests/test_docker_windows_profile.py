@@ -17,9 +17,11 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
+from opensandbox_server.api.schema import PlatformSpec
 from opensandbox_server.services.docker_windows_profile import (
     apply_windows_runtime_host_config_defaults,
     escape_batch_env_value,
+    resolve_docker_platform,
     resolve_windows_execd_download_url,
     validate_windows_runtime_prerequisites,
 )
@@ -55,6 +57,20 @@ def test_validate_windows_runtime_prerequisites_reports_missing_devices():
     assert exc_info.value.status_code == 400
     assert "/dev/kvm" in exc_info.value.detail["message"]
     assert "/dev/net/tun" in exc_info.value.detail["message"]
+
+
+def test_resolve_docker_platform_skips_windows_profile():
+    assert (
+        resolve_docker_platform(PlatformSpec(os="windows", arch="amd64"))
+        is None
+    )
+
+
+def test_resolve_docker_platform_preserves_linux_profile():
+    assert (
+        resolve_docker_platform(PlatformSpec(os="linux", arch="arm64"))
+        == "linux/arm64"
+    )
 
 
 def test_resolve_windows_execd_download_url_prefers_request_env_override():

@@ -1130,6 +1130,7 @@ def test_create_and_start_container_windows_profile_keeps_image_entrypoint(mock_
 
     kwargs = mock_client.api.create_container.call_args.kwargs
     assert "entrypoint" not in kwargs
+    assert "platform" not in kwargs
     assert kwargs["command"] == ["cmd", "/c", "echo ready"]
     mock_install.assert_called_once()
 

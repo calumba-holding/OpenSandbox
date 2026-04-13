@@ -50,6 +50,18 @@ def is_windows_platform(platform: Optional["PlatformSpec"]) -> bool:
     return bool(platform and platform.os == "windows")
 
 
+def resolve_docker_platform(platform: Optional["PlatformSpec"]) -> Optional[str]:
+    """
+    Resolve Docker API `platform` argument for container create.
+
+    For windows profile (dockur/windows), the image itself is linux-based and
+    should not be forced to windows/* via Docker API platform pinning.
+    """
+    if platform is None or is_windows_platform(platform):
+        return None
+    return f"{platform.os}/{platform.arch}"
+
+
 def normalize_bootstrap_command(
     bootstrap_command: list[str],
     requested_windows_platform: bool,

@@ -70,6 +70,7 @@ from opensandbox_server.services.docker_windows_profile import (
     install_windows_oem_scripts,
     is_windows_platform,
     normalize_bootstrap_command,
+    resolve_docker_platform,
     resolve_windows_execd_download_url,
     validate_windows_runtime_prerequisites,
 )
@@ -2340,6 +2341,7 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
             bootstrap_command,
             requested_windows_platform,
         )
+        docker_platform = resolve_docker_platform(platform)
 
         host_config = self.docker_client.api.create_host_config(**host_config_kwargs)
         container = None
@@ -2357,8 +2359,8 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
                 }
                 if not requested_windows_platform:
                     container_kwargs["entrypoint"] = [BOOTSTRAP_PATH]
-                if platform is not None:
-                    container_kwargs["platform"] = f"{platform.os}/{platform.arch}"
+                if docker_platform is not None:
+                    container_kwargs["platform"] = docker_platform
 
                 response = self.docker_client.api.create_container(**container_kwargs)
             container_id = response.get("Id")
@@ -2426,8 +2428,7 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
 
             if isinstance(exc, HTTPException):
                 raise exc
-            if isinstance(exc, TypeError) and platform is not None:
-                docker_platform = f"{platform.os}/{platform.arch}"
+            if isinstance(exc, TypeError) and docker_platform is not None:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={
