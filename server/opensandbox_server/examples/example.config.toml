@@ -37,6 +37,9 @@ execd_image = "opensandbox/execd:v1.0.12"
 # Example: allowed_host_paths = ["/data/opensandbox", "/tmp/sandbox"]
 allowed_host_paths = []
 
+# Default storage size for auto-created Kubernetes PVCs (when caller omits size).
+volume_default_size = "1Gi"
+
 [docker]
 network_mode = "bridge"
 # Drop dangerous capabilities and block privilege escalation
