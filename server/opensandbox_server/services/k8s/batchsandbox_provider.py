@@ -46,6 +46,11 @@ from opensandbox_server.services.k8s.provider_common import (
     _extract_platform_unschedulable_message_from_pod,
     _workload_platform_constraint_scope,
 )
+from opensandbox_server.services.k8s.windows_profile import (
+    apply_windows_profile_overrides,
+    is_windows_profile,
+    validate_windows_profile_resource_limits,
+)
 from opensandbox_server.services.k8s.volume_helper import apply_volumes_to_pod_spec
 from opensandbox_server.services.k8s.workload_provider import WorkloadProvider
 from opensandbox_server.services.runtime_resolver import SecureRuntimeResolver
@@ -113,13 +118,10 @@ class BatchSandboxProvider(WorkloadProvider):
     ) -> Dict[str, Any]:
         """Create a BatchSandbox in template mode or pool mode."""
         extensions = extensions or {}
+        windows_profile = is_windows_profile(platform)
 
         if self.runtime_class:
-            logger.info(
-                "Using Kubernetes RuntimeClass '%s' for sandbox %s",
-                self.runtime_class,
-                sandbox_id,
-            )
+            logger.info(f"Using Kubernetes RuntimeClass '{self.runtime_class}' for sandbox {sandbox_id}")
 
         if extensions.get("poolRef"):
             if platform is not None:
@@ -145,6 +147,9 @@ class BatchSandboxProvider(WorkloadProvider):
         
         extra_volumes, extra_mounts = self._extract_template_pod_extras()
 
+        if windows_profile:
+            validate_windows_profile_resource_limits(resource_limits)
+
         disable_ipv6_for_egress = (
             network_policy is not None
             and egress_image is not None
@@ -166,8 +171,7 @@ class BatchSandboxProvider(WorkloadProvider):
         )
         
         containers = [_container_to_dict(main_container)]
-        
-        pod_spec: Dict[str, Any] = {
+        pod_spec = {
             "initContainers": [_container_to_dict(init_container)],
             "containers": containers,
             "volumes": [
@@ -177,8 +181,18 @@ class BatchSandboxProvider(WorkloadProvider):
                 }
             ],
         }
-        self._apply_platform_node_selector(pod_spec, platform)
+        if windows_profile:
+            apply_windows_profile_overrides(
+                pod_spec=pod_spec,
+                entrypoint=entrypoint,
+                env=env,
+                resource_limits=resource_limits,
+                disable_ipv6_for_egress=disable_ipv6_for_egress,
+            )
+        else:
+            self._apply_platform_node_selector(pod_spec, platform)
 
+        containers = pod_spec.get("containers", [])
         if self.runtime_class:
             pod_spec["runtimeClassName"] = self.runtime_class
 
@@ -222,7 +236,7 @@ class BatchSandboxProvider(WorkloadProvider):
         else:
             batchsandbox["spec"]["expireTime"] = expires_at.isoformat()
         self._merge_pod_spec_extras(batchsandbox, extra_volumes, extra_mounts)
-        if platform is not None:
+        if platform is not None and not windows_profile:
             merged_pod_spec = batchsandbox.get("spec", {}).get("template", {}).get("spec", {})
             WorkloadProvider.ensure_platform_compatible_with_affinity(merged_pod_spec, platform)
         

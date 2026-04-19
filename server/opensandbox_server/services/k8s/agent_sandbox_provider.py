@@ -39,6 +39,7 @@ from opensandbox_server.services.k8s.provider_common import (
 )
 from opensandbox_server.services.k8s.volume_helper import apply_volumes_to_pod_spec
 from opensandbox_server.services.k8s.workload_provider import WorkloadProvider
+from opensandbox_server.services.k8s.windows_profile import is_windows_profile
 from opensandbox_server.services.runtime_resolver import SecureRuntimeResolver
 
 logger = logging.getLogger(__name__)
@@ -140,12 +141,11 @@ class AgentSandboxProvider(WorkloadProvider):
         egress_mode: str = EGRESS_MODE_DNS,
     ) -> Dict[str, Any]:
         """Create an agent-sandbox Sandbox CRD workload."""
+        if is_windows_profile(platform):
+            raise ValueError("agent-sandbox does not support platform.os=windows.")
+
         if self.runtime_class:
-            logger.info(
-                "Using Kubernetes RuntimeClass '%s' for sandbox %s",
-                self.runtime_class,
-                sandbox_id,
-            )
+            logger.info(f"Using Kubernetes RuntimeClass '{self.runtime_class}' for sandbox {sandbox_id}")
 
         pod_spec = self._build_pod_spec(
             image_spec=image_spec,
