@@ -1917,6 +1917,10 @@ var _ = Describe("Manager", Ordered, func() {
 				fmt.Sscanf(allocatedStr, "%d", &allocated)
 
 				g.Expect(available+allocated).To(Equal(total), "Pool available+allocated should equal total")
+				// Ensure buffer (available) is within [BufferMin, BufferMax] so the pool is truly stable
+				// before restarting, preventing spurious scale-up after restart.
+				g.Expect(available).To(BeNumerically(">=", 2), "Pool available should be >= BufferMin")
+				g.Expect(available).To(BeNumerically("<=", 3), "Pool available should be <= BufferMax")
 			}, 2*time.Minute).Should(Succeed())
 
 			By("recording Pool available count before restart")
@@ -1936,10 +1940,24 @@ var _ = Describe("Manager", Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(poolAllocatedAfter).To(Equal(poolAllocatedBefore))
 
+				// Wait for pool to stabilize: available+allocated must equal total before checking available.
+				cmd = exec.Command("kubectl", "get", "pool", poolName, "-n", testNamespace,
+					"-o", "jsonpath={.status.total}")
+				totalStr, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				total := 0
+				fmt.Sscanf(totalStr, "%d", &total)
+
 				cmd = exec.Command("kubectl", "get", "pool", poolName, "-n", testNamespace,
 					"-o", "jsonpath={.status.available}")
 				poolAvailableAfter, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
+				available := 0
+				fmt.Sscanf(poolAvailableAfter, "%d", &available)
+				allocated := 0
+				fmt.Sscanf(poolAllocatedAfter, "%d", &allocated)
+				g.Expect(available+allocated).To(Equal(total), "Pool must stabilize before checking available")
+
 				g.Expect(poolAvailableAfter).To(Equal(poolAvailableBefore))
 			}, 30*time.Second).Should(Succeed())
 
