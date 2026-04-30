@@ -97,6 +97,7 @@ from opensandbox_server.services.constants import (
     SANDBOX_OSSFS_MOUNTS_LABEL,
     SANDBOX_PLATFORM_ARCH_LABEL,
     SANDBOX_PLATFORM_OS_LABEL,
+    SANDBOX_SNAPSHOT_ID_LABEL,
     SandboxErrorCodes,
 )
 from opensandbox_server.services.endpoint_auth import (
@@ -114,6 +115,7 @@ from opensandbox_server.services.helpers import (
 from opensandbox_server.services.ossfs_mixin import OSSFSMixin
 from opensandbox_server.services.sandbox_service import SandboxService
 from opensandbox_server.services.runtime_resolver import SecureRuntimeResolver
+from opensandbox_server.services.snapshot_restore import resolve_sandbox_image_from_request
 from opensandbox_server.services.validators import (
     calculate_expiration_or_raise,
     ensure_egress_configured,
@@ -717,6 +719,7 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
                 SANDBOX_MANUAL_CLEANUP_LABEL,
                 SANDBOX_PLATFORM_OS_LABEL,
                 SANDBOX_PLATFORM_ARCH_LABEL,
+                SANDBOX_SNAPSHOT_ID_LABEL,
                 ACCESS_RENEW_EXTEND_SECONDS_METADATA_KEY,
             }
         } or None
@@ -725,7 +728,8 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
             entrypoint = [entrypoint]
         image_tags = container.image.tags
         image_uri = image_tags[0] if image_tags else container.image.short_id
-        image_spec = ImageSpec(uri=image_uri)
+        snapshot_id = labels.get(SANDBOX_SNAPSHOT_ID_LABEL)
+        image_spec = None if snapshot_id else ImageSpec(uri=image_uri)
 
         created_at = parse_timestamp(container.attrs.get("Created"))
         last_transition_at = (
@@ -746,6 +750,7 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
         return Sandbox(
             id=resolved_id,
             image=image_spec,
+            snapshotId=snapshot_id,
             platform=platform_spec,
             status=status_info,
             metadata=metadata,
@@ -910,7 +915,8 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
         Raises:
             HTTPException: If sandbox creation fails
         """
-        ensure_entrypoint(request.entrypoint)
+        request = resolve_sandbox_image_from_request(request)
+        ensure_entrypoint(request.entrypoint or [])
         ensure_metadata_labels(request.metadata)
         ensure_platform_valid(request.platform)
         ensure_timeout_within_limit(
@@ -1015,9 +1021,13 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
 
     @staticmethod
     def _pending_to_sandbox(sandbox_id: str, pending: PendingSandbox) -> Sandbox:
+        snapshot_id = getattr(pending.request, "snapshot_id", None)
+        if not isinstance(snapshot_id, str) or not snapshot_id:
+            snapshot_id = None
         return Sandbox(
             id=sandbox_id,
-            image=pending.request.image,
+            image=None if snapshot_id else pending.request.image,
+            snapshotId=snapshot_id,
             platform=pending.request.platform,
             status=pending.status,
             metadata=pending.request.metadata,
@@ -1466,8 +1476,9 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
         Docker-specific validation for host bind mount volumes.
 
         Validates that the resolved host path (host.path + optional subPath)
-        remains within allowed prefixes, then ensures the directory exists on
-        the filesystem — creating it automatically if it does not.
+        remains within allowed prefixes — including symlink resolution — then
+        ensures the directory exists on the filesystem, creating it automatically
+        if it does not.
 
         Args:
             volume: Volume with host backend.
@@ -1486,6 +1497,19 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
         # any edge-case bypass.
         if allowed_prefixes and resolved_path != volume.host.path:
             ensure_valid_host_path(resolved_path, allowed_prefixes)
+
+        # ── Symlink-aware allowlist check ──
+        # os.path.normpath and ensure_valid_host_path only perform lexical
+        # checks.  A symlink within a whitelisted directory (e.g.
+        # /data/opensandbox/link -> /) would pass lexical validation but
+        # Docker resolves the symlink when creating the bind mount, escaping
+        # the allowed prefix.  Resolve both the host path and the allowed
+        # prefixes with realpath to detect this.
+        if allowed_prefixes:
+            canonical = os.path.realpath(resolved_path)
+            canonical_prefixes = [os.path.realpath(p) for p in allowed_prefixes]
+            if canonical != resolved_path or canonical_prefixes != allowed_prefixes:
+                ensure_valid_host_path(canonical, canonical_prefixes)
 
         # Allow existing host files (for example ISO binds to /boot.iso)
         # without attempting directory creation.
@@ -2246,6 +2270,8 @@ class DockerSandboxService(DockerDiagnosticsMixin, OSSFSMixin, SandboxService, E
         if request.platform is not None:
             labels[SANDBOX_PLATFORM_OS_LABEL] = request.platform.os
             labels[SANDBOX_PLATFORM_ARCH_LABEL] = request.platform.arch
+        if request.snapshot_id:
+            labels[SANDBOX_SNAPSHOT_ID_LABEL] = request.snapshot_id
 
         apply_access_renew_extend_seconds_to_mapping(labels, request.extensions)
 

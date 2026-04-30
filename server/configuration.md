@@ -29,10 +29,11 @@ Example files in this repository:
 8. [`[ingress]`](#ingress)
 9. [`[egress]`](#egress)
 10. [`[storage]`](#storage)
-11. [`[secure_runtime]`](#secure_runtime)
-12. [`[renew_intent]`](#renew_intent--experimental)
-13. [Environment variables (outside TOML)](#environment-variables-outside-toml)
-14. [Cross-field validation rules](#cross-field-validation-rules)
+11. [`[store]`](#store)
+12. [`[secure_runtime]`](#secure_runtime)
+13. [`[renew_intent]`](#renew_intent--experimental)
+14. [Environment variables (outside TOML)](#environment-variables-outside-toml)
+15. [Cross-field validation rules](#cross-field-validation-rules)
 
 ---
 
@@ -49,6 +50,7 @@ Example files in this repository:
 | `[ingress]` | No | Optional; see [Ingress](#ingress) |
 | `[egress]` | No | Required values when clients use `networkPolicy` on create |
 | `[storage]` | No | Host bind mounts / OSSFS mount root |
+| `[store]` | No | Server-managed persistent metadata backend |
 | `[secure_runtime]` | No | gVisor / Kata / Firecracker |
 | `[renew_intent]` | No | Experimental auto-renew on access |
 
@@ -115,6 +117,7 @@ If `runtime.type = "kubernetes"` and the `[kubernetes]` table is absent, the ser
 | `service_account` | string \| omitted | `null` | ServiceAccount name bound to workload pods. |
 | `workload_provider` | string \| omitted | `null` | One of: **`batchsandbox`**, **`agent-sandbox`**. If omitted, the **first registered** provider is used (currently **`batchsandbox`**). |
 | `batchsandbox_template_file` | string \| omitted | `null` | Path to **BatchSandbox** CR YAML template when `workload_provider = "batchsandbox"`. |
+| `image_pull_policy` | string \| omitted | `"IfNotPresent"` | Image pull policy for the BatchSandbox main container. Values: **`Always`**, **`IfNotPresent`**, **`Never`**. |
 | `sandbox_create_timeout_seconds` | integer | `60` | Max time to wait for a new sandbox to become ready (e.g. IP assigned), in seconds. |
 | `sandbox_create_poll_interval_seconds` | float | `1.0` | Poll interval while waiting for readiness. |
 | `informer_enabled` | boolean | `true` | **[Beta]** Use informer/watch cache for reads to reduce API load. |
@@ -134,9 +137,10 @@ Kubernetes workloads are created by a **workload provider**. There is **no** `[b
 |--|--------------------------------------|--------------------------------------------------------------------------------------------------------|
 | `kubernetes.workload_provider` | `"batchsandbox"` or **omit** (factory default is `batchsandbox`) | `"agent-sandbox"` |
 | Template file | **`kubernetes.batchsandbox_template_file`** — path to **BatchSandbox** CR YAML | **`agent_sandbox.template_file`** in [`[agent_sandbox]`](#agent_sandbox--only-with-kubernetes--agent-sandbox) |
+| Image pull policy | **`kubernetes.image_pull_policy`** — writes `imagePullPolicy` into the BatchSandbox pod template main container | Not currently used |
 | Extra TOML table | None | **`[agent_sandbox]`** is required (see below) |
 
-**BatchSandbox-only config key in `config.py`:** `batchsandbox_template_file` on `KubernetesRuntimeConfig`. Everything else in the `[kubernetes]` table (namespace, kubeconfig, informer, API QPS, `sandbox_create_*`, `execd_init_resources`, …) applies to **whichever** provider you select.
+**BatchSandbox-only config keys in `config.py`:** `batchsandbox_template_file` and `image_pull_policy` on `KubernetesRuntimeConfig`. Everything else in the `[kubernetes]` table (namespace, kubeconfig, informer, API QPS, `sandbox_create_*`, `execd_init_resources`, …) applies to **whichever** provider you select.
 
 ### `kubernetes.execd_init_resources`
 
@@ -219,6 +223,29 @@ Host-side storage related to **volume mounts** (host bind allowlist and OSSFS mo
 | `volume_default_size` | string | `"1Gi"` | Default storage size for auto-created Kubernetes PVCs when the caller does not specify a size in the PVC provisioning hints. |
 
 Sandbox **volume** models (`host`, `pvc`, `ossfs`) in API requests are documented in the OpenAPI specs and OSEPs; this table only covers **server** storage settings.
+
+---
+
+## `[store]`
+
+Configures the persistence backend for **server-managed resources**. This is a
+server-wide store, not a snapshot-specific backend. Snapshot metadata is the
+first resource persisted here; future persistent server resources should reuse
+the same backend.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `type` | string | `"sqlite"` | Server persistence backend type. Currently only **`sqlite`** is supported. |
+| `path` | string | `"~/.opensandbox/opensandbox.db"` | Filesystem path to the SQLite database file used for server-managed metadata. Parent directories are created automatically when needed. |
+
+**Notes**
+
+- The default SQLite backend gives local and single-node deployments persistent
+  metadata without requiring an external database service.
+- `memory` is intentionally **not** the default because server-managed snapshot
+  resources must survive process restarts.
+- Higher-level components should depend on repository abstractions rather than
+  importing `sqlite3` directly.
 
 ---
 

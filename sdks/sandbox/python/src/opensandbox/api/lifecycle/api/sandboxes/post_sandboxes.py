@@ -96,7 +96,7 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     body: CreateSandboxRequest,
 ) -> Response[CreateSandboxResponse | ErrorResponse]:
-    """Create a sandbox
+    r"""Create a sandbox
 
      Creates a new sandbox from a container image or restores one from a
     persistent sandbox snapshot with optional resource limits, environment
@@ -107,8 +107,8 @@ def sync_detailed(
     - `snapshotId` to restore from a previously created snapshot.
 
     When `image` is provided, `entrypoint` is required. When `snapshotId` is
-    provided, `entrypoint` must be omitted because the restored snapshot carries
-    its startup process.
+    provided, `entrypoint` is optional. If omitted, the server defaults the
+    sandbox entrypoint to `[\"tail\", \"-f\", \"/dev/null\"]`.
 
     ## Authentication
 
@@ -121,8 +121,8 @@ def sync_detailed(
             Exactly one of `image` or `snapshotId` must be provided.
 
             When `image` is provided, `entrypoint` is required. When `snapshotId` is
-            provided, `entrypoint` must be omitted because the restored snapshot carries
-            its startup process.
+            provided, `entrypoint` is optional. If omitted, the server defaults the
+            sandbox entrypoint to `["tail", "-f", "/dev/null"]`.
 
             **Note**: API Key authentication is required via the `OPEN-SANDBOX-API-KEY` header.
 
@@ -150,7 +150,7 @@ def sync(
     client: AuthenticatedClient | Client,
     body: CreateSandboxRequest,
 ) -> CreateSandboxResponse | ErrorResponse | None:
-    """Create a sandbox
+    r"""Create a sandbox
 
      Creates a new sandbox from a container image or restores one from a
     persistent sandbox snapshot with optional resource limits, environment
@@ -161,8 +161,8 @@ def sync(
     - `snapshotId` to restore from a previously created snapshot.
 
     When `image` is provided, `entrypoint` is required. When `snapshotId` is
-    provided, `entrypoint` must be omitted because the restored snapshot carries
-    its startup process.
+    provided, `entrypoint` is optional. If omitted, the server defaults the
+    sandbox entrypoint to `[\"tail\", \"-f\", \"/dev/null\"]`.
 
     ## Authentication
 
@@ -175,8 +175,8 @@ def sync(
             Exactly one of `image` or `snapshotId` must be provided.
 
             When `image` is provided, `entrypoint` is required. When `snapshotId` is
-            provided, `entrypoint` must be omitted because the restored snapshot carries
-            its startup process.
+            provided, `entrypoint` is optional. If omitted, the server defaults the
+            sandbox entrypoint to `["tail", "-f", "/dev/null"]`.
 
             **Note**: API Key authentication is required via the `OPEN-SANDBOX-API-KEY` header.
 
@@ -199,7 +199,7 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     body: CreateSandboxRequest,
 ) -> Response[CreateSandboxResponse | ErrorResponse]:
-    """Create a sandbox
+    r"""Create a sandbox
 
      Creates a new sandbox from a container image or restores one from a
     persistent sandbox snapshot with optional resource limits, environment
@@ -210,8 +210,8 @@ async def asyncio_detailed(
     - `snapshotId` to restore from a previously created snapshot.
 
     When `image` is provided, `entrypoint` is required. When `snapshotId` is
-    provided, `entrypoint` must be omitted because the restored snapshot carries
-    its startup process.
+    provided, `entrypoint` is optional. If omitted, the server defaults the
+    sandbox entrypoint to `[\"tail\", \"-f\", \"/dev/null\"]`.
 
     ## Authentication
 
@@ -224,8 +224,8 @@ async def asyncio_detailed(
             Exactly one of `image` or `snapshotId` must be provided.
 
             When `image` is provided, `entrypoint` is required. When `snapshotId` is
-            provided, `entrypoint` must be omitted because the restored snapshot carries
-            its startup process.
+            provided, `entrypoint` is optional. If omitted, the server defaults the
+            sandbox entrypoint to `["tail", "-f", "/dev/null"]`.
 
             **Note**: API Key authentication is required via the `OPEN-SANDBOX-API-KEY` header.
 
@@ -251,7 +251,7 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     body: CreateSandboxRequest,
 ) -> CreateSandboxResponse | ErrorResponse | None:
-    """Create a sandbox
+    r"""Create a sandbox
 
      Creates a new sandbox from a container image or restores one from a
     persistent sandbox snapshot with optional resource limits, environment
@@ -262,8 +262,8 @@ async def asyncio(
     - `snapshotId` to restore from a previously created snapshot.
 
     When `image` is provided, `entrypoint` is required. When `snapshotId` is
-    provided, `entrypoint` must be omitted because the restored snapshot carries
-    its startup process.
+    provided, `entrypoint` is optional. If omitted, the server defaults the
+    sandbox entrypoint to `[\"tail\", \"-f\", \"/dev/null\"]`.
 
     ## Authentication
 
@@ -276,8 +276,8 @@ async def asyncio(
             Exactly one of `image` or `snapshotId` must be provided.
 
             When `image` is provided, `entrypoint` is required. When `snapshotId` is
-            provided, `entrypoint` must be omitted because the restored snapshot carries
-            its startup process.
+            provided, `entrypoint` is optional. If omitted, the server defaults the
+            sandbox entrypoint to `["tail", "-f", "/dev/null"]`.
 
             **Note**: API Key authentication is required via the `OPEN-SANDBOX-API-KEY` header.
 

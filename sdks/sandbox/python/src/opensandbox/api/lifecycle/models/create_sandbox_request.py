@@ -44,8 +44,8 @@ class CreateSandboxRequest:
     Exactly one of `image` or `snapshotId` must be provided.
 
     When `image` is provided, `entrypoint` is required. When `snapshotId` is
-    provided, `entrypoint` must be omitted because the restored snapshot carries
-    its startup process.
+    provided, `entrypoint` is optional. If omitted, the server defaults the
+    sandbox entrypoint to `["tail", "-f", "/dev/null"]`.
 
     **Note**: API Key authentication is required via the `OPEN-SANDBOX-API-KEY` header.
 
@@ -91,8 +91,10 @@ class CreateSandboxRequest:
                 'staging'}.
             entrypoint (list[str] | Unset): The command to execute as the sandbox's entry process.
 
-                Required when `image` is provided. Must be omitted when `snapshotId`
-                is provided because the restored snapshot carries its startup process.
+                Required when `image` is provided.
+
+                Optional when `snapshotId` is provided. If omitted for snapshot
+                restore, the server defaults to `["tail", "-f", "/dev/null"]`.
 
                 Explicitly specifies the user's expected main process, allowing the sandbox management
                 service to reliably inject control processes before executing this command.

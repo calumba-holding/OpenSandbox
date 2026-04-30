@@ -60,6 +60,10 @@ informer_watch_timeout_seconds = 60
 # If not specified, uses the first registered provider (typically "batchsandbox")
 workload_provider = "batchsandbox"
 
+# BatchSandbox 主容器的镜像拉取策略。
+# 可选值："Always"、"IfNotPresent"、"Never"。
+image_pull_policy = "IfNotPresent"
+
 # Path to the BatchSandbox template file
 # Replace with your path
 batchsandbox_template_file = "~/batchsandbox-template.yaml"
@@ -68,7 +72,7 @@ batchsandbox_template_file = "~/batchsandbox-template.yaml"
 mode = "direct"
 
 [egress]
-image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/egress:v1.0.9"
+image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/egress:v1.0.10"
 mode = "dns"
 # Default is true (recommended for dual-stack CNI). Set false only if you need IPv6 in the netns (see server/configuration.md).
 # disable_ipv6 = false

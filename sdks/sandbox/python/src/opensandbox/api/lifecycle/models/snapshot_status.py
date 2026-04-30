@@ -37,6 +37,7 @@ class SnapshotStatus:
 
             Common state values:
             - Creating: Snapshot creation has been accepted and runtime capture is in progress.
+            - Deleting: Snapshot deletion has been requested and cleanup is in progress.
             - Ready: Snapshot is available for restoring sandboxes.
             - Failed: Snapshot creation failed.
 

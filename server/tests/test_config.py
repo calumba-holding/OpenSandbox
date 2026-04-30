@@ -32,6 +32,7 @@ from opensandbox_server.config import (
     SecureAccessConfig,
     SecureAccessKey,
     ServerConfig,
+    StoreConfig,
     StorageConfig,
 )
 
@@ -96,6 +97,12 @@ def test_server_config_defaults_include_max_sandbox_timeout():
     assert server_cfg.max_sandbox_timeout_seconds is None
 
 
+def test_store_defaults_to_sqlite():
+    cfg = StoreConfig()
+    assert cfg.type == "sqlite"
+    assert cfg.path.endswith("opensandbox.db")
+
+
 def test_renew_intent_defaults():
     cfg = AppConfig(runtime=RuntimeConfig(type="docker", execd_image="opensandbox/execd:latest"))
     ar = cfg.renew_intent
@@ -150,6 +157,29 @@ def test_load_config_renew_intent_dotted_redis_keys(tmp_path, monkeypatch):
     assert ar.redis.consumer_concurrency == 4
 
 
+def test_load_config_store_block(tmp_path, monkeypatch):
+    _reset_config(monkeypatch)
+    db_path = tmp_path / "snapshots.sqlite3"
+    escaped_db_path = str(db_path).replace("\\", "\\\\").replace('"', '\\"')
+    toml = textwrap.dedent(
+        f"""
+        [store]
+        type = "sqlite"
+        path = "{escaped_db_path}"
+
+        [runtime]
+        type = "docker"
+        execd_image = "opensandbox/execd:test"
+        """
+    )
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(toml)
+
+    loaded = config_module.load_config(config_path)
+    assert loaded.store.type == "sqlite"
+    assert loaded.store.path == str(db_path)
+
+
 def test_load_config_renew_intent_legacy_redis_subtable(tmp_path, monkeypatch):
     """[renew_intent.redis] remains accepted (same parsed shape as dotted keys)."""
     _reset_config(monkeypatch)
@@ -177,6 +207,33 @@ def test_load_config_renew_intent_legacy_redis_subtable(tmp_path, monkeypatch):
     loaded = config_module.load_config(config_path)
     assert loaded.renew_intent.redis.enabled is True
     assert loaded.renew_intent.redis.dsn == "redis://legacy:6379/0"
+
+
+def test_load_config_ignores_legacy_pause_block(tmp_path, monkeypatch):
+    _reset_config(monkeypatch)
+    toml = textwrap.dedent(
+        """
+        [server]
+        host = "127.0.0.1"
+        port = 9000
+
+        [runtime]
+        type = "kubernetes"
+        execd_image = "opensandbox/execd:test"
+
+        [pause]
+        snapshot_registry = "registry.example.com/sandboxes"
+        snapshot_push_secret = "registry-snapshot-push-secret"
+        resume_pull_secret = "registry-pull-secret"
+        snapshot_type = "Rootfs"
+        """
+    )
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(toml)
+
+    loaded = config_module.load_config(config_path)
+    assert loaded.runtime.type == "kubernetes"
+    assert not hasattr(loaded, "pause")
 
 
 def test_kubernetes_runtime_fills_missing_block():

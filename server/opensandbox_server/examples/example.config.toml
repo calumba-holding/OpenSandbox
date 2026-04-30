@@ -43,6 +43,10 @@ allowed_host_paths = []
 # Default storage size for auto-created Kubernetes PVCs (when caller omits size).
 volume_default_size = "1Gi"
 
+[store]
+type = "sqlite"
+path = "~/.opensandbox/opensandbox.db"
+
 [docker]
 network_mode = "bridge"
 # Drop dangerous capabilities and block privilege escalation
@@ -59,7 +63,7 @@ seccomp_profile = ""
 mode = "direct"
 
 [egress]
-image = "opensandbox/egress:v1.0.9"
+image = "opensandbox/egress:v1.0.10"
 mode = "dns"
 
 # 🧪 [EXPERIMENTAL] Renew-on-access. Off by default — see server/README.md.
