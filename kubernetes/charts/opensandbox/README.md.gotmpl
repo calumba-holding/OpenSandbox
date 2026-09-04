@@ -2,6 +2,11 @@
 
 This Helm chart bundles both the **OpenSandbox Controller** and **OpenSandbox Server** into a single deployment for simplified installation.
 
+> **Single-active Server default**: The chart deploys one active Lifecycle
+> Server by default. Multi-replica Server HA is not supported yet, including
+> with a shared PostgreSQL database. PostgreSQL-backed Kubernetes HA will be
+> delivered in a separate change.
+
 ## Prerequisites
 
 - Kubernetes 1.21.1+
@@ -86,7 +91,7 @@ opensandbox-controller:
 
 opensandbox-server:
   server:
-    replicaCount: 2
+    replicaCount: 1
     gateway:
       enabled: true
       host: gateway.example.com
