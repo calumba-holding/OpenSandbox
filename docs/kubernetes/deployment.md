@@ -73,7 +73,9 @@ The chart installs the server into `opensandbox-system`, while the default `conf
 The chart defaults to `server.replicaCount: 1`. Keep one active Lifecycle
 Server. Multi-replica Server HA is not supported yet, including with a shared
 PostgreSQL database. PostgreSQL-backed Kubernetes HA will be delivered in a
-separate change.
+separate change. The Server Deployment uses the `Recreate` strategy so an
+upgrade stops the active Server before starting its replacement; expect a brief
+API interruption during upgrades.
 :::
 
 ### Use PostgreSQL for server persistence
